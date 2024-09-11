@@ -1,0 +1,92 @@
+#include<linux/module.h>
+#include<linux/i2c.h>
+#include<linux/gpio/driver.h>
+#include<linux/slab.h>
+
+struct pcf8574 {
+	struct i2c_client *client; //I2C client structure
+	struct gpio_chip gpio_chip; //GPIO chip structure : This is an abstraction of all different types of GPIO sources so they can be accessed through a common programming interface
+	uint8_t gpio_state; //Current state of GPIO pins
+};
+
+
+
+static int pcf8574_gpio_get(struct gpio_chip *chip, unsigned int offset) {
+	struct pcf8574 *pcf8574 = gpiochip_get_data(chip);
+	return (pcf8574->gpio_state >> offset) & 0x1;
+
+}
+static void pcf8574_gpio_set(struct gpio_chip *chip, unsigned int offset, int value) {
+	struct pcf8574 *pcf8574 = gpiochip_get_data(chip);
+	if(value)
+		pcf8574->gpio_state |= (1 << offset); 
+	else
+		pcf8574->gpio_state &= ~(1 << offset);
+	i2c_smbus_write_byte(pcf8574->client, pcf8574->gpio_state);
+}
+EXPORT_SYMBOL(pcf8574_gpio_set);
+static int pcf8574_gpio_direction_input(struct gpio_chip *chip, unsigned int offset) {
+	return 0;
+}
+
+static int pcf8574_gpio_direction_output(struct gpio_chip *chip, unsigned int offset, int value) {
+	pcf8574_gpio_set(chip, offset, value);
+	return 0;
+}
+static int pcf8574_probe(struct i2c_client *client, const struct i2c_device_id *id) {
+	struct pcf8574 *pcf8574;
+	int ret;
+     printk("Entered the probe function of the i2c module for PCF8574\n");
+	pcf8574 = devm_kzalloc(&client->dev,sizeof(*pcf8574), GFP_KERNEL);
+	if(!pcf8574)
+		return -ENOMEM;
+	pcf8574->client = client;
+	pcf8574->gpio_state = 0xFF; // Default state: All pins high
+
+	//Initialize the GPIO chip
+	pcf8574->gpio_chip.label = client->name;
+	pcf8574->gpio_chip.parent = &client->dev;
+	pcf8574->gpio_chip.owner = THIS_MODULE;
+	pcf8574->gpio_chip.base = -1;
+	pcf8574->gpio_chip.ngpio = 8;
+	pcf8574->gpio_chip.can_sleep = true;
+	pcf8574->gpio_chip.get = pcf8574_gpio_get;
+	pcf8574->gpio_chip.set = pcf8574_gpio_set;
+	pcf8574->gpio_chip.direction_input = pcf8574_gpio_direction_input;
+	pcf8574->gpio_chip.direction_output = pcf8574_gpio_direction_output;
+
+	ret = devm_gpiochip_add_data(&client->dev, &pcf8574->gpio_chip, pcf8574);//This function is used to register the GPIO chip and associate it with a device structure. The last parameter is the device specific info, in this case the structure pcf8574
+
+	i2c_set_clientdata(client, pcf8574);//Associate driver specific data with an I2C client device
+
+     printk("Finished the probe for the PCF8574\n");
+	return 0;
+}
+
+static int pcf8574_remove(struct i2c_client *client) {
+        printk("Removing the pcf8574\n");
+	return 0;
+}
+
+static const struct i2c_device_id pcf8574_id[] = {
+	{"pcf8574", 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, pcf8574_id);
+
+//I2C driver structure
+static struct i2c_driver pcf8574_driver = {
+	.driver = {
+		.name  = "pcf8574",
+	},
+	.probe = pcf8574_probe,
+	.remove = pcf8574_remove,
+	.id_table = pcf8574_id,
+     .address_list = {0x27, I2C_CLIENT_END },
+};
+
+module_i2c_driver(pcf8574_driver);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Paritosh Potukuchi");
+MODULE_AUTHOR("Basic PCF*%&$ I2C driver");

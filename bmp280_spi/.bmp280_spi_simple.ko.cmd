@@ -1,0 +1,1 @@
+cmd_/home/debian/johannes4gnu/bmp280_spi/bmp280_spi_simple.ko := ld -r  -EL -T ./scripts/module-common.lds -T ./arch/arm/kernel/module.lds  --build-id  -o /home/debian/johannes4gnu/bmp280_spi/bmp280_spi_simple.ko /home/debian/johannes4gnu/bmp280_spi/bmp280_spi_simple.o /home/debian/johannes4gnu/bmp280_spi/bmp280_spi_simple.mod.o ;  true

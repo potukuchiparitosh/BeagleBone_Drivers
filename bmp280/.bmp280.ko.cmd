@@ -1,0 +1,1 @@
+cmd_/home/debian/johannes4gnu/bmp280/bmp280.ko := ld -r  -EL -T ./scripts/module-common.lds -T ./arch/arm/kernel/module.lds  --build-id  -o /home/debian/johannes4gnu/bmp280/bmp280.ko /home/debian/johannes4gnu/bmp280/bmp280.o /home/debian/johannes4gnu/bmp280/bmp280.mod.o ;  true

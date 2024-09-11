@@ -1,0 +1,1 @@
+cmd_/home/debian/johannes4gnu/hc05/hc05.ko := ld -r  -EL -T ./scripts/module-common.lds -T ./arch/arm/kernel/module.lds  --build-id  -o /home/debian/johannes4gnu/hc05/hc05.ko /home/debian/johannes4gnu/hc05/hc05.o /home/debian/johannes4gnu/hc05/hc05.mod.o ;  true
