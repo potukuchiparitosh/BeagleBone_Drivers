@@ -1,0 +1,2 @@
+driver_write arguments. char *buf  ------------>   const char *buf
+__user usage in front of the user_buffer

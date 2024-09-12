@@ -1,0 +1,3 @@
+[  +0.033191] spi_master spi0: /ocp/spi@48030000/bmp@0 has no valid 'spi-max-frequency' property (-22)
+[  +0.009313] spi_master spi0: Failed to create SPI device for /ocp/spi@48030000/bmp@0
+

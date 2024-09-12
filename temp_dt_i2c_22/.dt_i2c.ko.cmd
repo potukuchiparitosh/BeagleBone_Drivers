@@ -1,0 +1,1 @@
+cmd_/home/debian/johannes4gnu/video_22_dt_i2c/dt_i2c.ko := ld -r  -EL -T ./scripts/module-common.lds -T ./arch/arm/kernel/module.lds  --build-id  -o /home/debian/johannes4gnu/video_22_dt_i2c/dt_i2c.ko /home/debian/johannes4gnu/video_22_dt_i2c/dt_i2c.o /home/debian/johannes4gnu/video_22_dt_i2c/dt_i2c.mod.o ;  true

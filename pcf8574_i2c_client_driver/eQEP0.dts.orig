@@ -1,0 +1,231 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2023 IES Systems Inc.
+ *   Ryan Robinson
+ * Virtual cape for IES custom cape 00
+ */
+ 
+/*
+pinmux control byte map courtesy of https://beaglebone.cameon.net/
+Bit 5: 1 - Input, 0 - Output
+Bit 4: 1 - Pull up, 0 - Pull down
+Bit 3: 1 - Pull disabled, 0 - Pull enabled
+Bit 2 \
+Bit 1 |- Mode
+Bit 0 /
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/board/am335x-bbw-bbb-base.h>
+#include <dt-bindings/pinctrl/am33xx.h>
+
+/*
+ * Helper to show loaded overlays under: /proc/device-tree/chosen/overlays/
+ */
+&{/chosen} {
+	overlays {
+		IES-CAPE = __TIMESTAMP__;
+	};
+};
+
+/*
+ * Free up the pins used by the cape from the pinmux helpers.
+ */
+&ocp {
+	P8_11_pinmux { status = "disabled"; };	/* P8_11: qep2_B */
+	P8_12_pinmux { status = "disabled"; };	/* P8_12: qep2_A */
+	P8_13_pinmux { status = "disabled"; };  /* P8_13: hrpwm2B */
+	P8_15_pinmux { status = "disabled"; };	/* P8_15: qep2_strobe */
+	P8_16_pinmux { status = "disabled"; };	/* P8_16: qep2_index */
+	P8_19_pinmux { status = "disabled"; };	/* P8_19: hrpwm2A */
+	P9_11_pinmux { status = "disabled"; };	/* P9_11: uart4_rxd */
+	P9_12_pinmux { status = "disabled"; };	/* P9_12: gpio - DE/RE_ */
+	P9_13_pinmux { status = "disabled"; };	/* P9_13: uart4_txd */
+	P9_14_pinmux { status = "disabled"; };	/* P9_14: hrpwm1A */
+	P9_16_pinmux { status = "disabled"; };	/* P9_16: hrpwm1B */
+	P9_17_pinmux { status = "disabled"; };	/* P9_17: spi0_cs0 */
+	P9_18_pinmux { status = "disabled"; };	/* P9_18: spi0_d1 */
+	P9_19_pinmux { status = "disabled"; };	/* P9_19: i2c2_scl */
+	P9_20_pinmux { status = "disabled"; };	/* P9_20: i2c2_sda */
+	P9_21_pinmux { status = "disabled"; };	/* P9_21: spi0_d0 */
+	P9_22_pinmux { status = "disabled"; };	/* P9_22: spi0_sclk */
+	P9_23_pinmux { status = "disabled"; };	/* P9_23: gpio - DE/RE_ */
+	P9_24_pinmux { status = "disabled"; };	/* P9_24: uart1_txd */
+	P9_25_pinmux { status = "disabled"; };	/* P9_25: qep0_strobe */
+	P9_26_pinmux { status = "disabled"; };	/* P9_26: uart1_rxd */
+	P9_27_pinmux { status = "disabled"; };	/* P9_27: qep0_B */
+	P9_41_pinmux { status = "disabled"; };  /* P9_42: qep0_index */
+	P9_42_pinmux { status = "disabled"; };  /* P9_42: qep0_A */
+	P9_92_pinmux { status = "disabled"; };	/* P9_92: GPIO3_18 = EQEP0A_in */
+	P9_91_pinmux { status = "disabled"; };	/* P9_91: GPIO3_20 = EQEP0_index */
+};
+
+&am33xx_pinmux {
+	mux_helper_pins: pins {
+		pinctrl-single,pins = <
+			/* EHRPWM1 */
+			BONE_P9_14  0x6 /* P9_14 | MODE 6 */
+			BONE_P9_16  0x6 /* P9_16 | MODE 6 */
+			
+			/* EHRPWM2 */
+			BONE_P8_19  0x4 /* P8_19 | MODE 4 */
+			BONE_P8_13  0x4 /* P8_13 | MODE 4 */
+			
+			/* UART1 */
+			AM33XX_PADCONF(AM335X_PIN_UART1_TXD, PIN_OUTPUT, MUX_MODE0)	/* P9_24 uart1_txd.uart1_txd */
+			AM33XX_PADCONF(AM335X_PIN_UART1_RXD, PIN_INPUT, MUX_MODE0)	/* P9_26 uart1_rxd.uart1_rxd */
+
+			/* UART4 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_WPN, PIN_OUTPUT, MUX_MODE6)	/* P9_13 gpmc_wpn.uart4_txd_mux2 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_WAIT0, PIN_INPUT, MUX_MODE6)	/* P9_13 gpmc_wait0.uart4_rxd_mux2 */
+
+			/* I2C2 */
+			BONE_P9_20 0x73	/* i2c2_sda, SLEWCTRL_SLOW | INPUT_PULLUP | MODE3 */
+			BONE_P9_19 0x73	/* i2c2_scl, SLEWCTRL_SLOW | INPUT_PULLUP | MODE3 */
+
+			/* SPI0 */
+			BONE_P9_17 0x20	/* spi0_cs0, INPUT MODE0 */
+			BONE_P9_18 0x20	/* spi0_d1, INPUT MODE0 */
+			BONE_P9_21 0x20	/* spi0_d0, INPUT MODE0 */
+			BONE_P9_22 0x20	/* spi0_sclk, INPUT MODE0 */
+
+			/* EQEP0 */
+			BONE_P9_42B 0x31  /* P9_42,EQEP0A, MODE1 */
+			BONE_P9_27 0x31   /* P9_27,EQEP0B, MODE1 */
+			BONE_P9_25 0x31  /* P9_25,EQEP0strobe_in, MODE1 */
+			BONE_P9_41B 0x31  /* P9_41,EQEP0index_in, MODE1 */
+
+			/* EQEP2 */
+			BONE_P8_12 0x34  /* P8_12,EQEP2A_in, MODE4 */
+			BONE_P8_11 0x34  /* P8_11,EQEP2B_in, MODE4 */
+			BONE_P8_15 0x34  /* P8_15,EQEP2strobe_in, MODE4 */
+			BONE_P8_16 0x34  /* P8_16,EQEP2index_in, MODE4 */
+
+			/* GPIO Outputs */
+			BONE_P9_12 0x0f /* Mode 7: GPIO Output - COM1 DE/RE_ */
+			BONE_P9_23 0x0f /* Mode 7: GPIO Output - COM2 DE/RE_ */
+		>;
+	};
+};
+
+&ocp {
+	test_helper: helper {
+		compatible = "bone-pinmux-helper";
+		pinctrl-names = "default";
+		pinctrl-0 = <&mux_helper_pins>;
+		status = "okay";
+	};
+};
+
+&uart1 {
+	/* sudo agetty 115200 ttyS1 */
+	status = "okay";
+};
+
+&uart4 {
+	/* sudo agetty 115200 ttyS4 */
+	status = "okay";
+};
+
+&i2c2  {
+	status = "okay";
+
+	/* this is the configuration part */
+	clock-frequency = <100000>; // Standard speed for testing.
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+};
+
+&eqep0 {
+	count_mode = <0>;	// count_mode is not userspace op_mode
+	// 0 -> Quadrature mode, normal 90 phase offset cha & chb.
+	// 1 -> Direction mode.  cha input = clock, chb input = direction
+	// 2 -> UP count mode for frequency measurement QDIR=1, ignore direction input
+	// 3 -> DOWN count mode for frequency measurement QDIR=0, ignore direction input
+
+	swap_inputs = <0>;	// swap channel A and B? (0 - no, 1 - yes)
+	invert_qa = <0>;	// invert channel A input?
+	invert_qb = <0>;	// invert channel B input?
+	invert_qi = <0>;	// invert index input?
+	invert_qs = <0>;	// invert strobe input?
+	omit_interrupt = <1>;	// 1 -> do not install interrupt handler, 0 -> do install
+
+	status = "okay";
+};
+
+&eqep2 {
+	count_mode = <0>;	// count_mode is not userspace op_mode
+	// 0 -> Quadrature mode, normal 90 phase offset cha & chb.
+	// 1 -> Direction mode.  cha input = clock, chb input = direction
+	// 2 -> UP count mode for frequency measurement QDIR=1, ignore direction input
+	// 3 -> DOWN count mode for frequency measurement QDIR=0, ignore direction input
+
+	swap_inputs = <0>;	// swap channel A and B? (0 - no, 1 - yes)
+	invert_qa = <0>;	// invert channel A input?
+	invert_qb = <0>;	// invert channel B input?
+	invert_qi = <0>;	// invert index input?
+	invert_qs = <0>;	// invert strobe input?
+	omit_interrupt = <1>;	// 1 -> do not install interrupt handler, 0 -> do install
+
+	status = "okay";
+};
+
+&epwmss0 {
+	status = "okay";
+};
+
+&epwmss1 {
+	status = "okay";
+};
+
+&ehrpwm1 {
+	status = "okay";
+};
+
+&epwmss2 {
+	status = "okay";
+};
+
+&ehrpwm2 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	/*
+	 * Select the D0 pin as output and D1 as
+	 * input. The default is D0 as input and
+	 * D1 as output.
+	 */
+	//ti,pindir-d0-out-d1-in;
+
+	channel@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		compatible = "spidev";
+		symlink = "bone/spi/0.0";
+
+		reg = <0>;
+		spi-max-frequency = <16000000>;
+		spi-cpha;
+	};
+
+	channel@1 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		compatible = "spidev";
+		symlink = "bone/spi/0.1";
+
+		reg = <1>;
+		spi-max-frequency = <16000000>;
+	};
+};

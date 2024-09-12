@@ -1,0 +1,20 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+  compatible = "ti,beaglebone", "ti,beaglebone-black";
+  part-number = "BBB-I2C1"; // memorable name
+  version = "00A0";
+
+  // New fragment to disable existing pin configuration
+  fragment@0 {
+    target = <&ocp>; // target the on-chip peripherals
+
+    __overlay__ {
+      // Disable the existing pin configurations
+      P9_21_pinmux { status = "disabled"; };
+      P9_22_pinmux { status = "disabled"; };
+    };
+  };
+};
+

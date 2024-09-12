@@ -1,0 +1,239 @@
+#include<linux/module.h>
+#include<linux/kernel.h>
+#include<linux/i2c.h>
+#include<linux/regmap.h>
+#include<linux/iio/iio.h>
+#include<linux/iio/sysfs.h>
+#include<linux/types.h>
+#define BMP280_REG_PRESSURE 0xF7
+#define BMP280_DIG_P 0x8E
+#define BMP280_REG_TEMP 0xFA
+#define BMP280_DIG_T 0x88
+
+
+typedef int32_t BMP280_S32_t;
+
+struct bmp280 {
+        struct regmap *regmap;
+        struct device *device;
+        struct iio_dev *iio_dev;
+};
+static const struct regmap_config bmp280_regmap_config = {
+        .reg_bits = 8,//number of bits in register address
+        .val_bits = 8, //number of bits in register value
+};
+
+static struct iio_chan_spec bmp280_channels[] = {
+        {
+                .type = IIO_PRESSURE,
+                .info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+        },
+        {
+                .type = IIO_TEMP,
+                .info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+        },
+};
+
+
+static int bmp280_read_raw(struct iio_dev *iio_dev, struct iio_chan_spec const *chan, int *val, int *val2, long mask) {
+        struct bmp280 *bmp280 = iio_priv(iio_dev);
+        printk(KERN_ALERT "inside bmp280_read_raw\n");
+        int ret;
+        char dig_p[18];
+        u8 buf[3];
+        u8 dig_t[6];
+        unsigned char ctrl_meas[1] = {(5 << 5) | (5 << 2) | (3 << 0)};
+        //unsigned char config[1] = {5 << 5};
+        unsigned char config[1] = {7 << 5};
+        u8 tmp_msb, tmp_mlsb, tmp_lsb;
+
+        u32 adc_T,adc_P,p;
+        u16 dig_T1, dig_T2, dig_T3;
+        u16 dig_P1, dig_P2, dig_P3, dig_P4, dig_P5, dig_P6, dig_P7, dig_P8, dig_P9;
+        int32_t var1,var2,T,t_fine = 0;
+
+        switch(chan->type) {
+                case IIO_PRESSURE:
+                        ret = regmap_bulk_read(bmp280->regmap, BMP280_REG_PRESSURE, buf, 3);
+                        if(ret < 0)
+                                return ret;
+                        adc_P = ((u32)(unsigned char)buf[0] << 16) |
+                                ((u32)(unsigned char)buf[1] << 8) |
+                                (((u32)(unsigned char)buf[2] >> 4) << 4);
+                        adc_P = adc_P >> 4;
+
+                        ret = regmap_bulk_read(bmp280->regmap, BMP280_DIG_T, dig_p, 18);
+
+                        dig_P1 = ((u16)(unsigned char)dig_p[1] << 8) |
+                                ((u16)(unsigned char)dig_p[0]);
+
+                        dig_P2 = ((u16)(unsigned char)dig_p[3] << 8) |
+                                ((u16)(unsigned char)dig_p[2]);
+
+                        dig_P3 = ((u16)(unsigned char)dig_p[5] << 8) |
+                                ((u16)(unsigned char)dig_p[4]);
+
+                        dig_P4 = ((u16)(unsigned char)dig_p[7] << 8) |
+                                ((u16)(unsigned char)dig_p[6]);
+
+                        dig_P5 = ((u16)(unsigned char)dig_p[9] << 8) |
+                                ((u16)(unsigned char)dig_p[8]);
+
+                        dig_P6 = ((u16)(unsigned char)dig_p[11] << 8) |
+                                ((u16)(unsigned char)dig_p[10]);
+
+                        dig_P7 = ((u16)(unsigned char)dig_p[13] << 8) |
+                                ((u16)(unsigned char)dig_p[12]);
+
+                        dig_P8 = ((u16)(unsigned char)dig_p[15] << 8) |
+                                ((u16)(unsigned char)dig_p[14]);
+
+                        dig_P9 = ((u16)(unsigned char)dig_p[17] << 8) |
+                                ((u16)(unsigned char)dig_p[16]);
+
+
+
+                        var1 = ((int32_t)t_fine/2) - 64000;
+                        var2 = var1 * var1 * ((u32)dig_P6) / 32768;
+                        var2 = var2 + var1 * ((u32)dig_P5) * 2;
+                        var2 = (var2/4)+(((u32)dig_P4) * 65536);
+                        var1 = (((u32)dig_P3) * var1 * var1 / 524288 + ((u32)dig_P2) * var1) / 524288;
+                        var1 = (1 + var1 / 32768)*((u32)dig_P1);
+                        if (var1 == 0)
+                        {
+                                *val= 0;
+                                return IIO_VAL_INT; // avoid exception caused by division by zero
+                        }
+                        p = 1048576 - (u32)adc_P;
+                        p = (p - (var2 / 4096)) * 6250 / var1;
+                        var1 = ((u32)dig_P9) * p * p / 2147483648;
+                        var2 = p * ((u32)dig_P8) / 32768;
+                        p = p + (var1 + var2 + ((u32)dig_P7)) / 16;
+                        
+                        *val = p;
+
+                        return IIO_VAL_INT;
+                case IIO_TEMP:
+
+#if 0
+                        tmp_msb = 7;
+                        tmp_mlsb = 0;
+                        tmp_lsb = 3;
+                        reg_ctrl_meas = (tmp_msb << 5) | (tmp_mlsb << 2) | tmp_lsb;
+#endif
+                        ret = regmap_bulk_write(bmp280->regmap, 0xF4, ctrl_meas,1);
+                        ret = regmap_bulk_write(bmp280->regmap, 0xF5, config,1);
+
+                        ret = regmap_bulk_read(bmp280->regmap, BMP280_REG_TEMP, buf, 3);
+#if 1
+                        if(ret < 0)
+                                return ret;
+                        //*val = be16_to_cpu(regval);
+                        adc_T = ((u32)(unsigned char)buf[0] << 12) |
+                                ((u32)(unsigned char)buf[1] << 4) |
+                                ((u32)(unsigned char)buf[2] >> 4);
+
+                        printk(KERN_INFO "The value of buf is %d%d%d\n",buf[0],buf[1],buf[2]);
+                        ret = regmap_bulk_read(bmp280->regmap, BMP280_DIG_T, dig_t, 6);
+
+                        dig_T1 = ((u16)(unsigned char)dig_t[1] << 8) |
+                                ((u16)(unsigned char)dig_t[0]);
+
+                        dig_T2 = ((u16)(unsigned char)dig_t[3] << 8) |
+                                ((u16)(unsigned char)dig_t[2]);
+
+                        dig_T3 = ((u16)(unsigned char)dig_t[5] << 8) |
+                                ((u16)(unsigned char)dig_t[4]);
+                        printk(KERN_INFO "The value of dig_t is %d%d%d%d%d%d\n",dig_t[0],dig_t[1],dig_t[2],dig_t[3],dig_t[4],dig_t[5]);
+
+
+                        var1 = ((((adc_T>>3) - ((BMP280_S32_t)dig_T1<<1))) * ((BMP280_S32_t)dig_T2)) >> 11;
+                        var2 = (((((adc_T>>4) - ((BMP280_S32_t)dig_T1)) * ((adc_T>>4) - ((BMP280_S32_t)dig_T1))) >> 12) * ((BMP280_S32_t)dig_T3)) >> 14;
+                        t_fine = var1 + var2;
+                        T = (t_fine * 5 + 128) >> 8;
+
+                        *val = T;
+#endif
+    //                    *val = (u32)(unsigned char)buf[0];
+                        return IIO_VAL_INT;
+                default:
+                        return -EINVAL;
+        }
+}
+static const struct iio_info bmp280_info = {
+        .read_raw = bmp280_read_raw,
+};
+static int bmp280_probe(struct i2c_client *client, const struct i2c_device_id *id) {
+        int ret;
+        struct iio_dev *iio_dev;
+        struct bmp280 *bmp280;
+        
+        printk(KERN_ALERT "BMP280 :  We have entered the probe function\n");
+
+        iio_dev = devm_iio_device_alloc(&client->dev, sizeof(struct bmp280));
+
+        bmp280 = iio_priv(iio_dev);
+
+        bmp280->regmap = devm_regmap_init_i2c(client, &bmp280_regmap_config);
+        bmp280->device = &client->dev; 
+
+        iio_dev->info = &bmp280_info;
+        iio_dev->channels = bmp280_channels;
+        iio_dev->num_channels = 2;
+        iio_dev->name = "bmp280";
+        iio_dev->modes = INDIO_DIRECT_MODE;
+
+        /* Initialice the sensor */
+	   i2c_smbus_write_byte_data(client, 0xf5, 5<<5);
+	   i2c_smbus_write_byte_data(client, 0xf4, ((5<<5) | (5<<2) | (3<<0)));
+
+        ret = iio_device_register(iio_dev);
+        if(ret) {
+                printk(KERN_ALERT "iio_device_register failed \n");
+                return ret;
+                
+        }
+        bmp280->iio_dev = iio_dev;
+        i2c_set_clientdata(client, bmp280);
+        return 0;
+
+
+
+}
+static int bmp280_remove(struct i2c_client *client) {
+        struct bmp280 *bmp280 = i2c_get_clientdata(client);
+
+        iio_device_unregister(bmp280->iio_dev);
+        return 0;
+
+}
+
+static const struct i2c_device_id bmp280_id[] = {
+        { "bmp280", 0},
+        { }
+};
+
+MODULE_DEVICE_TABLE(i2c, bmp280_id);
+
+static const struct of_device_id bmp280_match_table[] = {
+        {.compatible = "bmp280,bmp280_i2c"},
+        { },
+};
+MODULE_DEVICE_TABLE(of,bmp280_match_table);
+
+static struct i2c_driver bmp280_driver = {
+        .driver = {
+                .name = "bmp280",
+                .of_match_table = bmp280_match_table,
+        },
+                .probe = bmp280_probe,
+                .remove = bmp280_remove,
+                .id_table = bmp280_id,
+};
+
+module_i2c_driver(bmp280_driver);
+
+
+MODULE_AUTHOR("Paritosh Potukuchi");
+MODULE_DESCRIPTION("I2C driver for BMP280 sensor");
+MODULE_LICENSE("GPL");

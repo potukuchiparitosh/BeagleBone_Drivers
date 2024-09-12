@@ -1,0 +1,1 @@
+cmd_/home/debian/johannes4gnu/video3/read_write.ko := ld -r  -EL -T ./scripts/module-common.lds -T ./arch/arm/kernel/module.lds  --build-id  -o /home/debian/johannes4gnu/video3/read_write.ko /home/debian/johannes4gnu/video3/read_write.o /home/debian/johannes4gnu/video3/read_write.mod.o ;  true

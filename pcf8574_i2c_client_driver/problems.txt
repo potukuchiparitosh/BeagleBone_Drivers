@@ -1,0 +1,2 @@
+ one problem that I faced was that I was get many warning during overlay compilation.
+this was because address size and cells size had to come under the overlay part and I had put it under the device slave part lol
